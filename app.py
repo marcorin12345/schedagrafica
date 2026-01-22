@@ -100,7 +100,7 @@ with st.sidebar:
     st.header("Impostazioni Progetto")
     # MODIFICA NOME PROGETTO
     if 'project_id' not in st.session_state:
-        st.session_state['project_id'] = f"Es. 5921{random.randint(1000, 9999)}"
+        st.session_state['project_id'] = f"{random.randint(1000, 9999)}"
     
     proj_name = st.text_input("Inserisci codice", value=st.session_state['project_id'])
     st.session_state['project_id'] = proj_name
