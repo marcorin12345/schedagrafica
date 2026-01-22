@@ -97,12 +97,12 @@ def create_svg(data_slots, photos, cfg, cable_data, extra_labels):
 # --- INTERFACCIA ---
 
 with st.sidebar:
-    st.header("⚙️ Impostazioni Progetto")
+    st.header("Impostazioni Progetto")
     # MODIFICA NOME PROGETTO
     if 'project_id' not in st.session_state:
-        st.session_state['project_id'] = f"PROD-{random.randint(1000, 9999)}"
+        st.session_state['project_id'] = f"Es. 5921{random.randint(1000, 9999)}"
     
-    proj_name = st.text_input("Nome Progetto / SKU", value=st.session_state['project_id'])
+    proj_name = st.text_input("Inserisci codice", value=st.session_state['project_id'])
     st.session_state['project_id'] = proj_name
 
     uploaded_json = st.file_uploader("Carica Progetto (.json)", type=["json"])
@@ -114,14 +114,14 @@ with st.sidebar:
 col_input, col_view = st.columns([1, 1], gap="medium")
 
 with col_input:
-    with st.expander("🖼️ Immagini e Testi", expanded=True):
+    with st.expander("Immagini e Testi", expanded=True):
         f1 = st.file_uploader("FOTO 1 (Principale)", type=['jpg', 'jpeg', 'png'])
         f2 = st.file_uploader("FOTO 2 (Alta)", type=['jpg', 'jpeg', 'png'])
         f3 = st.file_uploader("FOTO 3 (Bassa)", type=['jpg', 'jpeg', 'png'])
         lbl2 = st.text_input("Testo sotto Foto 2", key="lbl2")
         lbl3 = st.text_input("Testo sotto Foto 3", key="lbl3")
 
-    with st.expander("📊 Specifiche Tecniche", expanded=True):
+    with st.expander("Specifiche Tecniche", expanded=True):
         data_slots = []
         for i in range(1, 5):
             c1, c2 = st.columns(2)
@@ -129,16 +129,16 @@ with col_input:
             u = c2.text_input(f"Etichetta {i}", key=f"u{i}")
             data_slots.append({"val": v, "unit": u})
         show_cbl = st.checkbox("Mostra Icona Cavo", value=True, key="show_cbl")
-        cbl_len = st.text_input("Lunghezza Cavo", "1.5 m", key="cbl_len")
+        cbl_len = st.text_input("Lunghezza Cavo", "120 cm", key="cbl_len")
 
-    with st.expander("🎨 Stile"):
+    with st.expander("Stile"):
         txt_c = st.color_picker("Colore Testo", "#000000", key="txt_c")
         bg_c = st.color_picker("Colore Bolle", "#EFEFEF", key="bg_c")
         t_z = st.slider("Zoom Testo", 0.5, 1.5, 1.0, key="t_z")
         c_z = st.slider("Zoom Bolle", 0.5, 1.2, 1.0, key="c_z")
 
 with col_view:
-    st.subheader(f"🖼️ Anteprima: {st.session_state['project_id']}")
+    st.subheader(f"Anteprima: {st.session_state['project_id']}")
     
     t1, t2, t3 = st.tabs(["Foto 1", "Foto 2", "Foto 3"])
     with t1:
@@ -162,7 +162,7 @@ with col_view:
     st.divider()
     c_d1, c_d2, c_d3 = st.columns(3)
     
-    c_d1.download_button("💾 SVG", svg_code, f"{st.session_state['project_id']}.svg", "image/svg+xml")
+    c_d1.download_button("SVG", svg_code, f"{st.session_state['project_id']}.svg", "image/svg+xml")
     
     current_state = {**cfg, "lbl2": lbl2, "lbl3": lbl3, "show_cbl": show_cbl, "cbl_len": cbl_len, "project_id": st.session_state['project_id']}
     for i in range(4):
@@ -170,7 +170,7 @@ with col_view:
         current_state[f"u{i+1}"] = data_slots[i]['unit']
     
     json_data = json.dumps(current_state, indent=4)
-    c_d2.download_button("📁 JSON", json_data, f"{st.session_state['project_id']}.json", "application/json")
+    c_d2.download_button("JSON", json_data, f"{st.session_state['project_id']}.json", "application/json")
 
     if CAIRO_INSTALLED:
         try:
@@ -178,7 +178,7 @@ with col_view:
             final_jpg = Image.open(io.BytesIO(png_img)).convert("RGB")
             buf = io.BytesIO()
             final_jpg.save(buf, format="JPEG", quality=95)
-            c_d3.download_button("🖼️ JPG", buf.getvalue(), f"{st.session_state['project_id']}.jpg", "image/jpeg")
+            c_d3.download_button("JPG", buf.getvalue(), f"{st.session_state['project_id']}.jpg", "image/jpeg")
         except Exception as e:
             st.error(f"Errore Cairo: {e}")
     else:
