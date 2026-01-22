@@ -17,11 +17,21 @@ except Exception:
 # --- SETUP ---
 st.set_page_config(layout="wide", page_title="SVG Card Creator Pro")
 
+# CSS per mantenere l'anteprima fissa (Sticky)
+st.markdown("""
+    <style>
+        [data-testid="column"]:nth-child(2) [data-testid="stVerticalBlock"] {
+            position: sticky;
+            top: 2rem;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 SAVE_DIR = "esportazioni"
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
-ICON_PATH_DATA = "M 23.52,7.43 22.31,5.67 20.38,4.42 18.21,4.01 16.03,4.44 14.44,5.42 13.21,6.93 12.5,9.07 12.65,11.18 14.26,11.76 13.91,8.97 14.49,7.48 15.45,6.38 17.36,5.45 19.25,5.47 21.38,6.68 22.57,8.87 22.39,11.33 21.06,13.22 19.19,14.13 16.88,14.2 16.55,13.14 13.66,13.04 12.5,12.67 9.36,9.87 5.38,9.75 4.83,10.25 4.78,11.74 0.63,11.74 0.0,12.36 0.63,13.12 4.75,13.12 4.78,16.59 0.45,16.64 0.03,17.5 0.63,18.0 4.73,18.0 4.81,19.46 5.23,19.96 9.51,19.81 12.68,16.97 16.48,16.62 16.91,15.53 19.75,15.31 21.94,14.15 23.07,12.87 23.85,11.01 23.97,9.32 Z"
+ICON_PATH_DATA = "M 23.52,7.43 22.31,5.67 20.38,4.42 18.21,4.01 16.03,4.44 14.44,5.42 13.21,6.93 12.5,9.07 12.65,11.18 14.26,11.76 13.91,8.97 14.49,7.48 15.45,6.38 17.36,5.45 19.25,5.47 21.38,6.68 22.57,8.87 22.39,11.33 21.06,13.22 19.19,14.13 16.88,14.2 16.55,13.14 13.66,13.04 12.5,12.67 9.36,9.87 5.38,9.75 4.83,10.25 4.78,11.74 0.63,11.74 0.0,12.36 0.63,13.12 4.75,13.12 4.78,16.59 0.45,16.64 0.03,17.5 0.63,18.0 4.73,18.0 4.81,19.46 5.23,19.96 9.51,19.81 12.68,16.97 16.48,16.62 16.91,15.53 19.75,15.31 21.94,14.15 23.07,12.87 23.85,11.01 23.85,11.01 23.97,9.32 Z"
 
 def get_img_b64(uploaded_file):
     if not uploaded_file: return None, None, None
@@ -39,6 +49,7 @@ def create_svg(data_slots, photos, cfg, cable_data, extra_labels):
     RIGHT_COL_X = 900
     CIRCLE_R = 150
 
+    # --- FOTO PRINCIPALE ---
     b64, fmt, size = get_img_b64(photos['f1'])
     if b64:
         ratio = max(MAIN_PHOTO_RECT[2]/size[0], MAIN_PHOTO_RECT[3]/size[1]) * cfg['f1_z']
@@ -51,6 +62,7 @@ def create_svg(data_slots, photos, cfg, cable_data, extra_labels):
         g_main.add(dwg.image(href=f"data:image/{fmt};base64,{b64}", insert=(px, py), size=(w, h)))
         dwg.add(g_main)
 
+    # --- FOTO LATERALI (TRATTEGGIATE) ---
     for i, key in enumerate(['f2', 'f3']):
         b64, fmt, size = get_img_b64(photos[key])
         cx, cy = RIGHT_COL_X, 220 + (i * 440)
@@ -63,27 +75,58 @@ def create_svg(data_slots, photos, cfg, cable_data, extra_labels):
             g_extra = dwg.g(clip_path=f"url(#clip_{key})")
             g_extra.add(dwg.image(href=f"data:image/{fmt};base64,{b64}", insert=(ix, iy), size=(w, h)))
             dwg.add(g_extra)
-            dwg.add(dwg.circle(center=(cx, cy), r=CIRCLE_R, fill="none", stroke=cfg['text_color'], stroke_width=3))
+            dwg.add(dwg.circle(center=(cx, cy), r=CIRCLE_R, fill="none", 
+                               stroke=cfg['text_color'], stroke_width=3, 
+                               stroke_dasharray="10,10"))
         
         label_text = extra_labels[i]
         if label_text:
             dwg.add(dwg.text(label_text, insert=(cx, cy + CIRCLE_R + 40), text_anchor="middle", 
                            font_size="22px", fill=cfg['text_color'], font_family="Arial", font_weight="bold"))
 
+    # --- SPECIFICHE TECNICHE (MULTIRIGA + INTERLINEA) ---
     active_items = [d for d in data_slots if d['val'].strip() != ""]
     r_data = 80 * cfg['circle_zoom']
     start_y = 140
     gap = (r_data * 2) + 30
     last_y = start_y
+
+    line_spacing = cfg.get('line_spacing', 1.1)
+
     for i, item in enumerate(active_items[:4]):
         cy = start_y + i * gap
         last_y = cy + r_data
         dwg.add(dwg.circle(center=(LEFT_COL_X, cy), r=r_data, fill=cfg['circle_color']))
-        dwg.add(dwg.text(item['val'], insert=(LEFT_COL_X, cy + r_data*0.1), text_anchor="middle", font_weight="bold", 
-                       font_size=f"{45*cfg['text_zoom']}px", fill=cfg['text_color'], font_family="Arial"))
-        dwg.add(dwg.text(item['unit'], insert=(LEFT_COL_X, cy + r_data*0.5), text_anchor="middle", 
-                       font_size=18*cfg['text_zoom'], fill=cfg['text_color'], font_family="Arial"))
+        
+        v_lines = [l for l in item['val'].split('\n') if l.strip()]
+        u_lines = [l for l in item['unit'].split('\n') if l.strip()]
+        
+        v_size = 45 * cfg['text_zoom']
+        u_size = 18 * cfg['text_zoom']
+        
+        # Calcolo altezze
+        v_total_h = len(v_lines) * v_size * line_spacing
+        u_total_h = len(u_lines) * u_size * line_spacing
+        total_h = v_total_h + u_total_h
+        
+        # Punto di partenza per centrare verticalmente il blocco
+        current_y = cy - (total_h / 2) + (v_size * 0.8)
 
+        # Scrittura Valori
+        for line in v_lines:
+            dwg.add(dwg.text(line, insert=(LEFT_COL_X, current_y), text_anchor="middle", 
+                           font_weight="bold", font_size=f"{v_size}px", 
+                           fill=cfg['text_color'], font_family="Arial"))
+            current_y += v_size * line_spacing
+        
+        # Scrittura Unità/Etichette
+        for line in u_lines:
+            dwg.add(dwg.text(line, insert=(LEFT_COL_X, current_y), text_anchor="middle", 
+                           font_size=f"{u_size}px", 
+                           fill=cfg['text_color'], font_family="Arial"))
+            current_y += u_size * line_spacing
+
+    # --- ICONA CAVO ---
     if cable_data['show'] and cable_data['val']:
         c_y = last_y + 80
         g_cbl = dwg.g(transform=f"translate({LEFT_COL_X}, {c_y})")
@@ -98,11 +141,10 @@ def create_svg(data_slots, photos, cfg, cable_data, extra_labels):
 
 with st.sidebar:
     st.header("Impostazioni Progetto")
-    # MODIFICA NOME PROGETTO
     if 'project_id' not in st.session_state:
         st.session_state['project_id'] = f"{random.randint(1000, 9999)}"
     
-    proj_name = st.text_input("Inserisci codice", value=st.session_state['project_id'])
+    proj_name = st.text_input("Codice Progetto", value=st.session_state['project_id'])
     st.session_state['project_id'] = proj_name
 
     uploaded_json = st.file_uploader("Carica Progetto (.json)", type=["json"])
@@ -114,28 +156,32 @@ with st.sidebar:
 col_input, col_view = st.columns([1, 1], gap="medium")
 
 with col_input:
-    with st.expander("Immagini e Testi", expanded=True):
+    with st.expander("🖼️ Immagini e Testi", expanded=True):
         f1 = st.file_uploader("FOTO 1 (Principale)", type=['jpg', 'jpeg', 'png'])
         f2 = st.file_uploader("FOTO 2 (Alta)", type=['jpg', 'jpeg', 'png'])
         f3 = st.file_uploader("FOTO 3 (Bassa)", type=['jpg', 'jpeg', 'png'])
         lbl2 = st.text_input("Testo sotto Foto 2", key="lbl2")
         lbl3 = st.text_input("Testo sotto Foto 3", key="lbl3")
 
-    with st.expander("Specifiche Tecniche", expanded=True):
+    with st.expander("📊 Specifiche Tecniche", expanded=True):
         data_slots = []
         for i in range(1, 5):
             c1, c2 = st.columns(2)
-            v = c1.text_input(f"Valore {i}", key=f"v{i}")
-            u = c2.text_input(f"Etichetta {i}", key=f"u{i}")
+            v = c1.text_area(f"Valore {i}", key=f"v{i}", height=60)
+            u = c2.text_area(f"Etichetta {i}", key=f"u{i}", height=60)
             data_slots.append({"val": v, "unit": u})
         show_cbl = st.checkbox("Mostra Icona Cavo", value=True, key="show_cbl")
         cbl_len = st.text_input("Lunghezza Cavo", "120 cm", key="cbl_len")
 
-    with st.expander("Stile"):
+    with st.expander("🎨 Stile"):
         txt_c = st.color_picker("Colore Testo", "#000000", key="txt_c")
         bg_c = st.color_picker("Colore Bolle", "#EFEFEF", key="bg_c")
         t_z = st.slider("Zoom Testo", 0.5, 1.5, 1.0, key="t_z")
         c_z = st.slider("Zoom Bolle", 0.5, 1.2, 1.0, key="c_z")
+        # NUOVO SLIDER INTERLINEA
+        l_s = st.slider("Interlinea Testi", 0.5, 2.5, 1.1, step=0.1, key="l_s")
+    
+    st.markdown("<br>" * 15, unsafe_allow_html=True)
 
 with col_view:
     st.subheader(f"Anteprima: {st.session_state['project_id']}")
@@ -151,18 +197,16 @@ with col_view:
     cfg = {
         "f1_x": f1x, "f1_y": f1y, "f1_z": f1z, "f2_x": f2x, "f2_y": f2y, "f2_z": f2z,
         "f3_x": f3x, "f3_y": f3y, "f3_z": f3z, "text_color": txt_c, "circle_color": bg_c, 
-        "text_zoom": t_z, "circle_zoom": c_z
+        "text_zoom": t_z, "circle_zoom": c_z, "line_spacing": l_s
     }
 
     svg_code = create_svg(data_slots, {'f1':f1, 'f2':f2, 'f3':f3}, cfg, {"show": show_cbl, "val": cbl_len}, [lbl2, lbl3])
     
-    # ANTEPRIMA RIDOTTA (width=400 invece che container_width)
-    st.image(svg_code, width=450)
+    st.image(svg_code, width=500)
 
     st.divider()
     c_d1, c_d2, c_d3 = st.columns(3)
-    
-    c_d1.download_button("SVG", svg_code, f"{st.session_state['project_id']}.svg", "image/svg+xml")
+    c_d1.download_button("💾 Scarica SVG", svg_code, f"{st.session_state['project_id']}.svg", "image/svg+xml")
     
     current_state = {**cfg, "lbl2": lbl2, "lbl3": lbl3, "show_cbl": show_cbl, "cbl_len": cbl_len, "project_id": st.session_state['project_id']}
     for i in range(4):
@@ -170,7 +214,7 @@ with col_view:
         current_state[f"u{i+1}"] = data_slots[i]['unit']
     
     json_data = json.dumps(current_state, indent=4)
-    c_d2.download_button("JSON", json_data, f"{st.session_state['project_id']}.json", "application/json")
+    c_d2.download_button("📥 Salva Progetto (JSON)", json_data, f"{st.session_state['project_id']}.json", "application/json")
 
     if CAIRO_INSTALLED:
         try:
@@ -178,8 +222,6 @@ with col_view:
             final_jpg = Image.open(io.BytesIO(png_img)).convert("RGB")
             buf = io.BytesIO()
             final_jpg.save(buf, format="JPEG", quality=95)
-            c_d3.download_button("JPG", buf.getvalue(), f"{st.session_state['project_id']}.jpg", "image/jpeg")
+            c_d3.download_button("🖼️ Scarica JPG", buf.getvalue(), f"{st.session_state['project_id']}.jpg", "image/jpeg")
         except Exception as e:
             st.error(f"Errore Cairo: {e}")
-    else:
-        st.warning("JPG disabilitato. Vedi istruzioni Cairo.")
